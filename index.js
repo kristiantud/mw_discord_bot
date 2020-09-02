@@ -98,40 +98,63 @@ async function checkGames(gamertag, plataform){
 	return summary.br.gamesPlayed;
 }
 
-// this function will be used to inspect the most recent match for important information
+// find info on the entire team, and info on pros if there are any
 async function inspectForEvents(){
-	var matchid = getMatchId("her0#11341", "battle");
-	matchid.then(function(res){
-		let matchStats = getMatchInformation(res, "battle");
-		console.log("match info found. printing...");
-		matchStats.then(function(results){
-			console.log(results);
-		});
-	});
+	
 }
 
+
+// this will return info on itachi's most recent match
 async function getRecentMatchStats(matchID, platform){
 	const login = await API.login("", "").catch((err) => console.log(err));
 	const summary = await API.MWFullMatchInfowz(matchID, platform).catch((err) => console.log(err));
-	let matchStats = {'kills' : 0,
+	let avgKills = 0;
+	let avgDeaths = 0;
+	let avgDmg = 0;
+	let avgKdr = 0;
+	let allStats = [];
+	var matchStats = {'username' : '',
+					  'kills' : 0,
 					  'deaths' : 0,
 					  'damage_done' : 0,
 					  'kdr' : 0,
-					  'team_placement' : 0};
+					  'team_placement' : 0
+					 };
 	// use matchID to find stats on itachi
 	for (x = 0; x < summary.allPlayers.length; x++){
 		if(summary.allPlayers[x].player.username === 'itachi'){
 			//console.log("itachi's kills: " + summary.allPlayers[x].playerStats.kills);
 			//console.log("itachi's placement: " + summary.allPlayers[x].playerStats.teamPlacement);
+			matchStats['username'] = summary.allPlayers[x].player.username;
 			matchStats['kills'] = summary.allPlayers[x].playerStats.kills;
 			matchStats['deaths'] = summary.allPlayers[x].playerStats.deaths;
 			matchStats['damage_done'] = summary.allPlayers[x].playerStats.damageDone;
 			matchStats['kdr'] = summary.allPlayers[x].playerStats.kdRatio;
 			matchStats['team_placement'] = summary.allPlayers[x].playerStats.teamPlacement;
+
+			allStats.push(matchStats);
 		}
+		avgKills = avgKills + summary.allPlayers[x].playerStats.kills;
+		avgDeaths = avgDeaths + summary.allPlayers[x].playerStats.deaths;
+		avgDmg = avgDmg + summary.allPlayers[x].playerStats.damageDone;
+		avgKdr = avgKdr + summary.allPlayers[x].playerStats.kdRatio;
 	}
 	
-	return matchStats;
+	avgKills = avgKills / summary.allPlayers.length;
+	avgDeaths = avgDeaths / summary.allPlayers.length;
+	avgKdr = avgKdr / summary.allPlayers.length;
+	avgDmg = avgDmg / summary.allPlayers.length;
+	
+
+	let lobbyStats = {'avg_kills' : avgKills.toFixed(2),
+					  'avg_deaths' : avgDeaths.toFixed(2),
+					  'avg_kdr' : avgKdr.toFixed(2),
+					  'avg_dmg' : avgDmg.toFixed(2)};
+					  
+	allStats.push(lobbyStats);
+	//console.log(allStats);
+	
+	return allStats;
 }
 
 
@@ -222,14 +245,62 @@ client.on('message',function(message){
 			let recentStats = getRecentMatchStats(res,"battle");
 			recentStats.then(function(results){
 				//console.log(results);
+				let itachi = {};
+				if (results.length == 2){
+					itachi = results[0];
+				}
+				
+				var comparedKills = (function(){
+					var temp = itachi['kills'] - results[1]['avg_kills']; 
+					if (temp > 0){
+						return "+" + temp.toFixed(2).toString();
+					} else {
+						return temp.toFixed(2).toString();
+					}
+				})();
+				var comparedDeaths = (function(){
+					var temp = itachi['deaths'] - results[1]['avg_deaths'];
+					if (temp > 0){
+						return "+" + temp.toFixed(2).toString();
+					} else {
+						return temp.toFixed(2).toString();
+					}
+				})();
+				var comparedKdr = (function(){
+					var temp = itachi['kdr'] - results[1]['avg_kdr'];  
+					if (temp > 0){
+						return "+" + temp.toFixed(2).toString();
+					} else {
+						return temp.toFixed(2).toString();
+					}
+				})();
+				var comparedDmg = (function(){
+					var temp = itachi['damage_done'] - results[1]['avg_dmg'];
+					if (temp > 0){
+						return "+" + temp.toFixed(2).toString();
+					} else {
+						return temp.toFixed(2).toString();
+					}
+				})();
 				const embed = new Discord.MessageEmbed()
-					.setTitle('itachi\'s Recent Match Stats')
-					.setDescription('Kills: ' + results['kills'] + 
-									'\nDeaths: ' + results['deaths'] +
-									'\nDamage Dealt: ' + results['damage_done'] + 
-									'\nKill/Death Ratio: ' + results['kdr'] + 
-									'\nPlacement: ' + results['team_placement'])
-					.setColor('#f50057');
+				    .setTitle(itachi['username'] + '\'s Recent Match: ' + res)
+					.setThumbnail('https://www.chicagomag.com/images/2019/0419/C201904-F-I-Got-a-Guy-Spice-Adams.jpg')
+					.addFields(
+							   {name: 'Kills: ', value: "`" + itachi['kills'] + "` *(" + comparedKills + ")*",inline: true},
+					           {name: 'Deaths:', value: "`" + itachi['deaths']  + "` *(" + comparedDeaths + ")*", inline: true},
+							   {name: 'DMG: ', value: "`" + itachi['damage_done']  + "` *(" + comparedDmg + ")*",inline: true},
+							   {name: 'KDR:', value: "`" + itachi['kdr'].toFixed(2) + "` *(" + comparedKdr + ")*", inline: true},
+							   {name: 'Placement:', value: "`" + itachi['team_placement'] + "`",inline:true},
+							   {name: '\u200B', value: '\u200B',inline:false},
+							   {name: 'Lobby Avg Kills:', value: "`" + results[1]['avg_kills'] + "`",inline:true},
+							   {name: 'Lobby Avg Deaths:', value: "`" + results[1]['avg_deaths']+ "`",inline:true},
+							   {name: 'Lobby Avg DMG:', value: "`" + results[1]['avg_dmg']+ "`",inline:true},
+							   {name: 'Lobby Avg KDR:', value: "`" + results[1]['avg_kdr'] + "`",inline:true}
+							   
+							   )
+					.setColor('#f50057')
+					.setFooter('Bot by kristiantud using call-of-duty-api','https://thumbor.forbes.com/thumbor/960x0/https%3A%2F%2Fblogs-images.forbes.com%2Frusselldorsey%2Ffiles%2F2019%2F01%2FCreme-Biggums-1200x675.jpg')
+					.setTimestamp();
 					message.channel.send(embed);
 			});
 		});
