@@ -343,16 +343,27 @@ client.on('message',function(message){
 							
 							let gameStats = inspectForEvents(result, "battle");
 							gameStats.then(function(allStats){
+								var mode = "";
 								let lobbyStats = allStats[0];
 								let myStats = allStats[1];
 								let teamStats = allStats[2];
 								let proStats = allStats[3];
 								let mostKills = findMax(lobbyStats['total_kills_team']);
 								let mostDmg = findMax(lobbyStats['total_dmg_team']);
+								
+								if (teamStats.length == 0){
+									mode = "Solos";
+								} else if (teamStats.length == 1){
+									mode = "Duos";
+								} else if (teamStats.length == 2){
+									mode = "Trios";
+								} else {
+									mode = "Quads";
+								}
 					
 						
 								const embed = new Discord.MessageEmbed()
-									.setTitle(myStats['username'] + '\'s Recent Match (Quads): ' + result)
+									.setTitle(myStats['username'] + '\'s Recent ' + mode + ' Match: ' + result)
 									.setDescription("--------------------------------------------")
 									.addField("🏆 Your team placed " + myStats['team_placement'] + " out of " + lobbyStats['totalTeams'] + " 🏆","--------------------------------------------",false)
 									.addField(myStats['username'] + '\'s stats:','🔪 Kills: ' + "`" + myStats['kills'] + "`" + 
@@ -426,7 +437,7 @@ client.on('message',function(message){
 							let gameStats = inspectForEvents(result, "battle");
 							gameStats.then(function(allStats){
 				
-				
+								let mode = "";
 								let lobbyStats = allStats[0];
 								let myStats = allStats[1];
 								let teamStats = allStats[2];
@@ -434,9 +445,19 @@ client.on('message',function(message){
 								let mostKills = findMax(lobbyStats['total_kills_team']);
 								let mostDmg = findMax(lobbyStats['total_dmg_team']);
 					
+								if (teamStats.length == 0){
+									mode = "Solos";
+								} else if (teamStats.length == 1){
+									mode = "Duos";
+								} else if (teamStats.length == 2){
+									mode = "Trios";
+								} else {
+									mode = "Quads";
+								}
+					
 						
 								const embed = new Discord.MessageEmbed()
-									.setTitle(myStats['username'] + '\'s Recent Match (Quads): ' + result)
+									.setTitle(myStats['username'] + '\'s Recent ' + mode + ' Match: ' + result)
 									.setDescription("--------------------------------------------")
 									.addField("🏆 Your team placed " + myStats['team_placement'] + " out of " + lobbyStats['totalTeams'] + " 🏆","--------------------------------------------",false)
 									.addField(myStats['username'] + '\'s stats:','🔪 Kills: ' + "`" + myStats['kills'] + "`" + 
