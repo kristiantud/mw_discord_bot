@@ -18,23 +18,114 @@ const API = require('call-of-duty-api')();
 
 // use this function to get the match id 
 // returns the match id 
-async function getMatchId(gamertag, platform) {
+async function getMatchId(gamertag, platform,gameNumber) {
   const login = await API.login(username, pswrd ).catch((err) => console.log(err));
   const summary = await API.MWfullcombatwz(gamertag, platform).catch((err) => console.log(err));
   //console.log(summary.weekly.mode.br_brquads);
 
   // console.log(summary[0].matchId);
-  return summary[0].matchId;
+  return summary[gameNumber].matchId;
 }
 
-// use this function to get games played count
-async function checkGames(gamertag, plataform){
+// use this function to get stats on player, calculate their estimated skill
+async function getPlayerScore(gamertag, unoId){
     const login = await API.login(username, pswrd).catch((err) => console.log(err));
-    const summary = await API.MWBattleData(gamertag, plataform).catch((err) => console.log(err));
+    const summary = await API.MWBattleData(gamertag, unoId).catch((err) => console.log(err));
 	
-	// console.log(summary.br.gamesPlayed);
+	var userScore = 0;
 	
-	return summary.br.gamesPlayed;
+	var userStats = {
+			'kills' : 0,
+			'kills_per_game' : 0,
+			'kdr' : 0,
+			'games_played' : 0,
+			'wins' : 0,
+			'score_per_minute' : 0
+	};
+
+
+	userStats['kills'] = summary.br.kills;
+	userStats['kills_per_game'] = summary.br.kills / summary.br.gamesPlayed;
+	userStats['kdr'] = summary.br.kdRatio;
+	userStats['games_played'] = summary.br.gamesPlayed;
+	userStats['wins'] = summary.br.wins;
+	userStats['score_per_minute'] = summary.br.scorePerMinute;
+	
+	// calculate the total score
+	
+	// for kills
+	if (userStats['kills'] < 1000)
+	{
+		userScore = userScore + 0.25;
+	} else if (userStats['kills'] > 1000 && userStats['kills'] < 2500) {
+		userScore = userScore + 0.50;
+	} else if (userStats['kills'] > 2500 && userStats['kills'] < 4500) { 
+		userScore = userScore + 0.75;
+	} else if (userStats['kills'] > 4500) {
+		userScore = userScore + 1.00;
+	}
+	
+	
+	// for kills per game
+	if (userStats['kills_per_game'] <= 1) {
+		userScore = userScore + 0.25;
+	} else if (userStats['kills_per_game'] > 1 && userStats['kills_per_game'] <= 3) {
+		userScore = userScore + 0.50;
+	} else if (userStats['kills_per_game'] > 3 && userStats['kills_per_game'] <= 5) { 
+		userScore = userScore + 0.75;
+	} else if (userStats['kills_per_game'] > 5) {
+		userScore = userScore + 1.00;
+	}
+	
+	userScore = userScore / 2;
+	
+	// for kdr 
+	if (userStats['kdr'] <= 1.00) {
+		userScore = userScore + 0.25;
+	} else if (userStats['kdr'] > 1.00 && userStats['kdr'] <= 1.50) {
+		userScore = userScore + 0.50;
+	} else if (userStats['kdr'] > 1.50 && userStats['kdr'] <= 2.00) { 
+		userScore = userScore + 0.75;
+	} else if (userStats['kdr'] > 2.00) {
+		userScore = userScore + 1.00;
+	}
+	
+	// for gamesplayed 
+	if (userStats['games_played'] <= 200) {
+		userScore = userScore + 0.25;
+	} else if (userStats['games_played'] > 200 && userStats['games_played'] <= 500) {
+		userScore = userScore + 0.50;
+	} else if (userStats['games_played'] > 500 && userStats['games_played'] <= 750) { 
+		userScore = userScore + 0.75;
+	} else if (userStats['games_played'] > 750) {
+		userScore = userScore + 1.00;
+	}
+	
+	// for wins 
+	if (userStats['wins'] <= 10 ) {
+		userScore = userScore + 0.25;
+	} else if (userStats['wins'] > 10 && userStats['wins'] <= 25) {
+		userScore = userScore + 0.50;
+	} else if (userStats['wins'] > 25 && userStats['wins'] <= 45) { 
+		userScore = userScore + 0.75;
+	} else if (userStats['wins'] > 45) {
+		userScore = userScore + 1.00;
+	}
+	
+	// for scorePerMinute
+	if (userStats['score_per_minute'] <= 100) {
+		userScore = userScore + 0.25;
+	} else if (userStats['score_per_minute'] > 100 && userStats['score_per_minute'] <= 250) {
+		userScore = userScore + 0.25;
+	} else if (userStats['score_per_minute'] > 250 && userStats['score_per_minute'] <= 350) { 
+		userScore = userScore + 0.75;
+	} else if (userStats['score_per_minute'] > 350) {
+		userScore = userScore + 1.00;
+	}
+	
+	
+	return userScore;
+
 }
 
 // finds stats on multiple entities
@@ -44,13 +135,15 @@ async function checkGames(gamertag, plataform){
 // 1 - myStats
 // 2 - teamStats
 // 3 - proStats
-async function inspectForEvents(matchId, platform){
+async function getMatchStatsById(matchId, platform){
 	const login = await API.login(username, pswrd).catch((err) => console.log(err));
     const summary = await API.MWFullMatchInfowz(matchId, platform).catch((err) => console.log(err));
 	
 	let teamCount = summary.allPlayers[0].teamCount; // total teams
 	let playerCount = summary.allPlayers[0].playerCount; // total players
 	let allPlayers = summary.allPlayers.sort((a, b) => Number(a.playerStats.teamPlacement) - Number(b.playerStats.teamPlacement));
+	
+	//console.log(allPlayers[0]);
 
 	let killLeader = "";
 	let killLeaderKills = 0;
@@ -76,7 +169,11 @@ async function inspectForEvents(matchId, platform){
 					  'team_placement' : 0
 				  };
 				  
+				  
+	// lobby's stats
 	let lobbyStats = {
+					  'lobby_winners' : [],
+					  'lobbyScore' : 0,
 					  'totalPlayers' : playerCount,
 					  'totalTeams' : teamCount,
 					  'damage_leader' : '',
@@ -94,28 +191,63 @@ async function inspectForEvents(matchId, platform){
 					  'total_kills_team' : [],
 					  'total_deaths_team' : [],
 					  'total_dmg_team' : [],
-					  'total_kdr_team' : []
+					  'total_kdr_team' : [],
+					  'last_10_team_avg_kills' : 0,
+					  'last_10_team_avg_deaths' : 0,
+					  'last_10_team_avg_kdr' : 0,
+					  'last_10_team_avg_damage' : 0
 					};
-				  
+	
+	
+	// holds stats of other players not me or teammates
 	var otherPlayers = {};
-					  
+	
+	// holds total kills of a team
 	let teamTotalKills = [];
 	let teamKillHolder = 0;
 	
+	// holds total deaths of a team
 	let teamTotalDeaths = [];
 	let teamDeathHolder = 0;
 	
+	// holds total kdr of a team
 	let teamTotalKdr = [];
 	let teamKdrHolder = 0;
 	
+	// holds total damage of a team
 	let teamTotalDmg = [];
 	let teamDmgHolder = 0;
 	
+	
+	// calculate the lobby's total score
+	let lobbyScore = 0;
 
+	// looks at every player in a match
 	for (x = 0 ; x < allPlayers.length; x++)
 	{
 		
+		/*
+		// get the username and unoId
+		var gamertag = allPlayers[x].player.username;
+		var unoId = allPlayers[x].player.uno;
 		
+		var playerScore = getPlayerScore(gamertag, uno);
+		lobbyScore = lobbyScore + playerScore;
+		*/
+		
+		if (allPlayers[x].playerStats.teamPlacement == 1)
+		{	
+			var temp = {};	 
+			temp['username'] = allPlayers[x].player.username;
+			temp['kills'] = allPlayers[x].playerStats.kills;
+			temp['damage_done'] =  allPlayers[x].playerStats.damageDone;
+			lobbyStats['lobby_winners'].push(temp);
+			temp = {};
+		}
+				
+		
+		
+
 		// current player becomes kill leader if they meet the criteria
 		if (allPlayers[x].playerStats.kills > killLeaderKills)
 		{
@@ -134,7 +266,7 @@ async function inspectForEvents(matchId, platform){
 			dmgLeader = dmgLeader + ", " + allPlayers[x].player.username; 
 		}
 		
-		// getting average of all the teams
+		// getting average of all the players
 		totalKillsPlayer += allPlayers[x].playerStats.kills;
 		totalDeathsPlayer += allPlayers[x].playerStats.deaths;
 		totalKdrPlayer += allPlayers[x].playerStats.kdRatio;
@@ -150,6 +282,7 @@ async function inspectForEvents(matchId, platform){
 			myStats['damage_done'] = allPlayers[x].playerStats.damageDone;
 			myStats['kdr'] = allPlayers[x].playerStats.kdRatio;
 			myStats['team_placement'] = allPlayers[x].playerStats.teamPlacement;
+			myStats['acti'] = allPlayers[x].player.uno;
 		}
 		
 		// getting stats of teammates
@@ -164,10 +297,9 @@ async function inspectForEvents(matchId, platform){
 		  allPlayers[x].player.username === "ElCapitan306")
 		{
 			
-		
-			
 			otherPlayers['username'] = allPlayers[x].player.username;
 			otherPlayers['clantag'] = allPlayers[x].player.clantag;
+			otherPlayers['acti'] = allPlayers[x].player.uno;
 			otherPlayers['kills'] = allPlayers[x].playerStats.kills;
 			otherPlayers['deaths'] = allPlayers[x].playerStats.deaths;
 			otherPlayers['damage_done'] = allPlayers[x].playerStats.damageDone;
@@ -190,10 +322,13 @@ async function inspectForEvents(matchId, platform){
 		  allPlayers[x].player.username === "cloakzy" || 
 		  allPlayers[x].player.username === "Daequan" || 
 		  allPlayers[x].player.username === "HusKerrs" || 
-		  allPlayers[x].player.username === "Symfuhny")
+		  allPlayers[x].player.username === "Symfuhny" || 
+		  allPlayers[x].player.username === "AydaN" ||
+		  allPlayers[x].player.username === "shroud" )
 		{
 			otherPlayers['username'] = allPlayers[x].player.username;
 			otherPlayers['clantag'] = allPlayers[x].player.clantag;
+			otherPlayers['acti'] = allPlayers[x].player.uno;
 			otherPlayers['kills'] = allPlayers[x].playerStats.kills;
 			otherPlayers['deaths'] = allPlayers[x].playerStats.deaths;
 			otherPlayers['damage_done'] = allPlayers[x].playerStats.damageDone;
@@ -205,7 +340,7 @@ async function inspectForEvents(matchId, platform){
 		}
 		
 
-		
+		// adds stats of a player 
 		if (teamTotalKills.length == allPlayers[x].playerStats.teamPlacement - 1){
 			teamKillHolder += allPlayers[x].playerStats.kills;
 			teamDeathHolder += allPlayers[x].playerStats.deaths;
@@ -216,7 +351,6 @@ async function inspectForEvents(matchId, platform){
 			teamTotalDeaths.push(teamDeathHolder);
 			teamTotalKdr.push(teamKdrHolder);
 			teamTotalDmg.push(teamDmgHolder);
-			
 			
 			teamKillHolder = 0;
 			teamDeathHolder = 0;
@@ -255,19 +389,33 @@ async function inspectForEvents(matchId, platform){
 	lobbyStats['total_kdr_team'] =  teamTotalKdr;
 	lobbyStats['total_dmg_team'] = teamTotalDmg;
 	
-	//console.log(myStats);
-	//console.log(teamStats);
+	var lastTenKills = 0;
+	var lastTenDeaths = 0;
+	var lastTenKdr = 0;
+	var lastTenDamage = 0;
 	
+	// put last 10 team stats into allStats
+	for (x = 0; x < 10; x++)
+	{
+		lastTenKills += teamTotalKills[x];
+		lastTenDeaths += teamTotalDeaths[x];
+		lastTenKdr += teamTotalKdr[x];
+		lastTenDamage += teamTotalDmg[x];
+	}
+	lobbyStats['last_10_team_avg_kills'] = lastTenKills / 10;
+	lobbyStats['last_10_team_avg_deaths'] = lastTenDeaths / 10;
+	lobbyStats['last_10_team_avg_kdr'] = lastTenKdr / 10;
+	lobbyStats['last_10_team_avg_damage'] = lastTenDamage / 10;
+	
+	
+	// put all data of match into allStats 
 	allStats.push(lobbyStats);
 	allStats.push(myStats);
 	allStats.push(teamStats);
 	allStats.push(proStats);
 	
-	
-	
 	//console.log(allStats);
 	return allStats;
-
 }
 
 
@@ -286,13 +434,203 @@ function findMax(anArray){
 	
 }
 
+// returns string of +/- for kills
+function comparedKillsToString(kills, lobbyStats){
+	var temp = kills - lobbyStats['avg_kills_player']; 
+	if (temp > 0){
+		return "+" + temp.toFixed(2).toString();
+	} else {
+		return temp.toFixed(2).toString();
+	}
+}
+
+// returns string of +/- for deaths
+function comparedDeathsToString(deaths,lobbyStats){
+	var temp = deaths - lobbyStats['avg_deaths_player']; 
+	if (temp > 0){
+		return "+" + temp.toFixed(2).toString();
+	} else {
+		return temp.toFixed(2).toString();
+	}
+}
+// returns string of +/- for kdr							
+function comparedKdrToString(kdr, lobbyStats){
+	var temp = kdr - lobbyStats['avg_kdr_player'];  
+	if (temp > 0){
+		return "+" + temp.toFixed(2).toString();
+	} else {
+		return temp.toFixed(2).toString();
+	}
+}
+// returns string of +/- for damage					
+function comparedDamageToString(damageDone, lobbyStats){
+	var temp = damageDone - lobbyStats['avg_dmg_player']; 
+	if (temp > 0){
+		return "+" + temp.toFixed(2).toString();
+	} else {
+		return temp.toFixed(2).toString();
+	}
+}
+
+// makes the embed to give to discord
+function makeEmbed(myStats, lobbyStats, teamStats){
+	let mostKills = findMax(lobbyStats['total_kills_team']);
+	let mostDmg = findMax(lobbyStats['total_dmg_team']);
+	let winners = "--------------------------------------------\n";
+	
+	
+	for (x = 0; x < lobbyStats.lobby_winners.length; x++)
+	{
+		winners = winners + "**" + lobbyStats.lobby_winners[x].username + "**'s kills: " + "`" + lobbyStats.lobby_winners[x].kills + "` | Damage: `" + lobbyStats.lobby_winners[x].damage_done + "`\n";
+	}
+	
+	const embed = new Discord.MessageEmbed()
+	.setDescription("--------------------------------------------")
+	.addField("🏆 Your team placed " + myStats['team_placement'] + " out of " + lobbyStats['totalTeams'] + " 🏆","--------------------------------------------",false)
+	.addField("Lobby Winner(s)", winners + "--------------------------------------------", false)
+	.addField(myStats['username'] + '\'s stats:',' 🔪 Kills: ' + "`" + myStats['kills'] + ' (' + comparedKillsToString(myStats['kills'], lobbyStats) + ')`' + 
+												 ' | ☠️ Deaths: ' + "`" + myStats['deaths'] + ' (' + comparedDeathsToString(myStats['deaths'], lobbyStats) + ')`' + 
+												 ' | 📊 KDR: ' + "`" + myStats['kdr'].toFixed(2) + ' (' + comparedKdrToString(myStats['kdr'], lobbyStats) + ')`' + 
+												 ' | 🔥 Damage: ' + "`" + myStats['damage_done'] + ' (' + comparedDamageToString(myStats['damage_done'], lobbyStats) + ')`' ,false);
+	
+	for (x = 0; x < teamStats.length; x++)
+	{
+		if (x == teamStats.length - 1) 
+		{
+			embed.addField(teamStats[x].username + "'s stats", '🔪 Kills: ' + "`" + teamStats[x]['kills'] + ' (' + comparedKillsToString(teamStats[x]['kills'], lobbyStats) + ')`' + 
+												 ' | ☠️ Deaths: ' + "`" + teamStats[x]['deaths'] + ' (' + comparedDeathsToString(teamStats[x]['deaths'], lobbyStats) + ')`' + 
+												 ' | 📊 KDR: ' + "`" + teamStats[x]['kdr'].toFixed(2) + ' (' + comparedKdrToString(teamStats[x]['kdr'], lobbyStats) + ')`' + 
+												 ' | 🔥 Damage: ' + "`" + teamStats[x]['damage_done'] + ' (' + comparedDamageToString(teamStats[x]['damage_done'], lobbyStats) + ')`' +
+												 "\n--------------------------------------------",false);
+		} else {
+			embed.addField(teamStats[x].username + "'s stats", '🔪 Kills: ' + "`" + teamStats[x]['kills'] + ' (' + comparedKillsToString(teamStats[x]['kills'], lobbyStats) + ')`' + 
+												 ' | ☠️ Deaths: ' + "`" + teamStats[x]['deaths'] + ' (' + comparedDeathsToString(teamStats[x]['deaths'], lobbyStats) + ')`' + 
+												 ' | 📊 KDR: ' + "`" + teamStats[x]['kdr'].toFixed(2) + ' (' + comparedKdrToString(teamStats[x]['kdr'], lobbyStats) + ')`' + 
+												 ' | 🔥 Damage: ' + "`" + teamStats[x]['damage_done'] + ' (' + comparedDamageToString(teamStats[x]['damage_done'], lobbyStats) + ')`',false);
+		}
+	}
+												 
+	embed.addField("Decimator" , "- The lobby's __kill leader(s)__: " + "**" + lobbyStats['kill_leader'] + "**" + " with " + "**" + lobbyStats['kill_leader_kills'] + "**" + " kills.")
+	.addField("The Feared" , "- " + "**" + lobbyStats['damage_leader'] + "**" + " dealt the __most damage__ with " + "**" + lobbyStats['damage_leader_dmg'] + "**" + " damage done.")
+	.addField("Us vs. Them","- Your team __clapped__ a total of " + "**" + lobbyStats['total_kills_team'][myStats['team_placement'] - 1] + "**" + " cheeks -- " + 
+								"the average kills of the last 10 teams is  " + "**" + lobbyStats['last_10_team_avg_kills'] + "**"  + "." + 
+													"\n- Your team __dealt__ a total of " + "**" + lobbyStats['total_dmg_team'][myStats['team_placement']-1] + "**" + " damage -- " + 
+								"the average damage dealt by the last 10 teams is " + "**" + lobbyStats['last_10_team_avg_damage'] + "**" + "." + 
+													"\n- The __most total kills__ by a team in the lobby is " + "**" + mostKills + "**" + "." +
+													"\n- The __most total damage done__ by a team in the lobby is " + "**" + mostDmg + "**" + "."
+													,false)
+	
+	.setColor('#00bfff')
+	.setFooter('Bot by kristiantud using call-of-duty-api','https://image-aws-us-west-2.vsco.co/db219f/140039794/5e602b5d92794d00422bd0b8/vsco5e602b5d3bf87.jpg')
+	.setTimestamp();
+	
+	return embed;
+}
+
+// make embed for pros
+function makeEmbedPro(proStats){
+	const msgEmbed = new Discord.MessageEmbed()
+							.setTitle("Twitch streamer(s) in lobby")
+							.setDescription("**Note:** *Some players are known to copy streamer usernames. Check the clantag for more verification.*");
+					for (x = 0; x < proStats.length; x++) 
+					{
+						msgEmbed.addField("[" + proStats[x].clantag + "] " + proStats[x].username + "'s stats", '🔪 Kills: ' + "`" + proStats[x]['kills'] + "`" + 
+																 ' | ☠️ Deaths: ' + "`" + proStats[x]['deaths'] + "`" +
+																 ' | 📊 KDR: ' + "`" + proStats[x]['kdr'].toFixed(2) + "`" + 
+																 ' | 🔥 Damage: ' + "`" + proStats[x]['damage_done'] + "`" + 
+																 ' | 🏆 Placement: ' + "`" + proStats[x]['team_placement'] + "`",false);
+					}
+					msgEmbed.setColor('#00bfff')
+					.setFooter('Bot by kristiantud using call-of-duty-api','https://image-aws-us-west-2.vsco.co/db219f/140039794/5e602b5d92794d00422bd0b8/vsco5e602b5d3bf87.jpg')
+					.setTimestamp();
+					
+	return msgEmbed;
+}
+
+async function getIds(n){
+	// loop n times and get the matchIds
+	var nMatchIds = [];
+	// return the array that holds all n matchIds
+	for (x = 0; x < n; x++)
+	{
+		var currMatchId = await getMatchId("her0#11341", "battle", x);
+		nMatchIds.push(currMatchId);
+	}
+	
+	return nMatchIds;
+}
+
+async function findPros(matchIds, platform)
+{
+	var proPlayersFound = [];
+	var proPlayersStats = 
+						{
+							'match_id' : 0,
+							'username' : '',
+							'clantag' : '',
+							'kills' : 0, 
+							'deaths' : 0,
+							'kdr' : 0,
+							'damage_done' : 0
+						};
+	for (matchId in matchIds)
+	{
+		console.log("checking game: " + matchId);
+		const login = await API.login(username, pswrd).catch((err) => console.log(err));
+		const summary = await API.MWFullMatchInfowz(matchId, platform).catch((err) => console.log(err));
+		
+		// look for pros and add it onto an array
+		for (x = 0; x < summary.allPlayers.length; x++)
+		{
+			if (summary.allPlayers[x].player.username === "Nickmercs" || 
+				summary.allPlayers[x].player.username === "SypherPk" ||
+				summary.allPlayers[x].player.username === "Trash_Fue" ||
+				summary.allPlayers[x].player.username === "Doozy" ||
+				summary.allPlayers[x].player.username === "K3" ||
+				summary.allPlayers[x].player.username === "Vikkstar123" || 
+				summary.allPlayers[x].player.username === "timthetatman" ||
+				summary.allPlayers[x].player.username === "cloakzy" || 
+				summary.allPlayers[x].player.username === "Daequan" || 
+				summary.allPlayers[x].player.username === "HusKerrs" || 
+				summary.allPlayers[x].player.username === "Symfuhny" || 
+				summary.allPlayers[x].player.username === "AydaN" ||
+				summary.allPlayers[x].player.username === "shroud" ||
+				summary.allPlayers[x].player.username === "JumpyLion" ||
+				summary.allPlayers[x].player.username === "itachi")
+			{
+				proPlayersStats['match_id'] = matchId;
+				proPlayersStats['username'] = summary.allPlayers[x].player.username;
+				proPlayersStats['clantag'] = summary.allPlayers[x].player.clantag;
+				proPlayersStats['kills'] = summary.allPlayers[x].playerStats.kills;
+				proPlayersStats['deaths'] = summary.allPlayers[x].playerStats.deaths;
+				proPlayersStats['kdr'] = summary.allPlayers[x].playerStats.kdRatio;
+				proPlayersStats['damage_done'] = summary.allPlayers[x].playerStats.damageDone;
+				proPlayersFound.push(proPlayersStats);
+				console.log("current player: " + proPlayersStats);
+				proPlayersStats = {};
+			}
+		}
+	}
+	
+	console.log(proPlayersFound);
+	return proPlayersFound;
+	
+}
+
+async function getWarzoneStats(gamertag, platform){
+	const login = await API.login(username, pswrd).catch((err) => console.log(err));
+    const summary = await API.MWBattleData(gamertag, platform).catch((err) => console.log(err));
+	
+	console.log(summary);
+}
 
 
-let gamesPlayed = checkGames("her0#11341","battle");
+
+// ================================ discord stuff ======================================= //
 var interval;
+const prefix = "!";
 
-
-
+// discord bot goes online
 client.login(token);
 
 
@@ -304,6 +642,13 @@ client.on('ready',function (){
 
 // handle message from the user
 client.on('message',function(message){
+	if (!message.content.startsWith(prefix)){
+		return;
+	}
+	
+	const args = message.content.trim().split(/ +/g);
+	const command = args[0].slice(prefix.length).toLowerCase();
+	
 	var time = new Date();
 	var hour = (time.getHours()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false});
 	var minutes = (time.getMinutes()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false});
@@ -316,205 +661,166 @@ client.on('message',function(message){
 	}
 	
 	// tell the bot to start looking for new matches
-	if (message.content === '!start'){
+	if (command === 'start'){
 		
-		message.channel.send(client.user.username + " is searching for new matches to analyze... ");
+		message.channel.send("`" + client.user.username + " is searching for new matches to analyze... `");
 		interval = setInterval(function(){
-			var time = new Date();
-			var hour = (time.getHours()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false});
-			var minutes = (time.getMinutes()).toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false});
-			var seconds = time.getSeconds().toLocaleString('en-US', {minimumIntegerDigits: 2, useGrouping:false});
-			var currentTime = hour + ":" + minutes + ":" + seconds + " " ;
 
-
-			// now look for games
-			gamesPlayed.then(function(res){
-				let newGameChecker = checkGames("her0#11341", "battle");
-				newGameChecker.then(function(result){
-					if (result > res){
-						// new game found
-						console.log(currentTime + "new game found. fetching information...");
-						res = res + 1;
-						
-						let matchid = getMatchId("her0#11341","battle");
-		
-						matchid.then(function (result) {
-							
-							
-							let gameStats = inspectForEvents(result, "battle");
-							gameStats.then(function(allStats){
-								var mode = "";
-								let lobbyStats = allStats[0];
-								let myStats = allStats[1];
-								let teamStats = allStats[2];
-								let proStats = allStats[3];
-								let mostKills = findMax(lobbyStats['total_kills_team']);
-								let mostDmg = findMax(lobbyStats['total_dmg_team']);
-								
-								if (teamStats.length == 0){
-									mode = "Solos";
-								} else if (teamStats.length == 1){
-									mode = "Duos";
-								} else if (teamStats.length == 2){
-									mode = "Trios";
-								} else {
-									mode = "Quads";
-								}
-					
-						
-								const embed = new Discord.MessageEmbed()
-									.setTitle(myStats['username'] + '\'s Recent ' + mode + ' Match: ' + result)
-									.setDescription("--------------------------------------------")
-									.addField("🏆 Your team placed " + myStats['team_placement'] + " out of " + lobbyStats['totalTeams'] + " 🏆","--------------------------------------------",false)
-									.addField(myStats['username'] + '\'s stats:','🔪 Kills: ' + "`" + myStats['kills'] + "`" + 
-																				 ' | ☠️ Deaths: ' + "`" + myStats['deaths'] + "`" +
-																				 ' | 📊 KDR: ' + "`" + myStats['kdr'].toFixed(2) + "`" + 
-																				 ' | 🔥 Damage: ' + "`" + myStats['damage_done'] + "`",false);
-									
-									for (x = 0; x < teamStats.length; x++)
-									{
-										embed.addField(teamStats[x].username + "'s stats", '🔪 Kills: ' + "`" + teamStats[x]['kills'] + "`" + 
-																				 ' | ☠️ Deaths: ' + "`" + teamStats[x]['deaths'] + "`" +
-																				 ' | 📊 KDR: ' + "`" + teamStats[x]['kdr'].toFixed(2) + "`" + 
-																				 ' | 🔥 Damage: ' + "`" + teamStats[x]['damage_done'] + "`",false);
-									}
-																				 
-									embed.addField("Decimator" , "- The lobby's __kill leader(s)__: " + "**" + lobbyStats['kill_leader'] + "**" + " with " + "**" + lobbyStats['kill_leader_kills'] + "**" + " kills.")
-									.addField("The Feared" , "- " + "**" + lobbyStats['damage_leader'] + "**" + " dealt the __most damage__ with " + "**" + lobbyStats['damage_leader_dmg'] + "**" + " damage done.")
-									.addField("Us vs. Them","- Your team __clapped__ a total of " + "**" + lobbyStats['total_kills_team'][myStats['team_placement'] - 1] + "**" + " cheeks -- " + 
-																"the lobby average for team kills is  " + "**" + lobbyStats['avg_kills_team'] + "**"  + "." + 
-																					"\n- Your team __dealt__ a total of " + "**" + lobbyStats['total_dmg_team'][myStats['team_placement']-1] + "**" + " damage -- " + 
-																"the lobby average for team damage dealt is " + "**" + lobbyStats['avg_dmg_team'] + "**" + "." + 
-																					"\n- The __most total kills__ by a team in the lobby is " + "**" + mostKills + "**" + "." +
-																					"\n- The __most total damage done__ by a team in the lobby is " + "**" + mostDmg + "**" + "."
-																					,false)
-									
-									.setColor('#00bfff')
-									.setFooter('Bot by kristiantud using call-of-duty-api','https://image-aws-us-west-2.vsco.co/db219f/140039794/5e602b5d92794d00422bd0b8/vsco5e602b5d3bf87.jpg')
-									.setTimestamp();
-									message.channel.send(embed);
-					
-								
-								if (proStats.length != 0)
-								{
-									const msgEmbed = new Discord.MessageEmbed()
-											.setTitle("Twitch streamer(s) in lobby");
-									for (x = 0; x < proStats.length; x++) 
-									{
-										msgEmbed.addField(proStats[x].username + "'s stats", '🔪 Kills: ' + "`" + proStats[x]['kills'] + "`" + 
-																				 ' | ☠️ Deaths: ' + "`" + proStats[x]['deaths'] + "`" +
-																				 ' | 📊 KDR: ' + "`" + proStats[x]['kdr'].toFixed(2) + "`" + 
-																				 ' | 🔥 Damage: ' + "`" + proStats[x]['damage_done'] ,false);
-									}
-									msgEmbed.setColor('#00bfff')
-									.setFooter('Bot by kristiantud using call-of-duty-api','https://image-aws-us-west-2.vsco.co/db219f/140039794/5e602b5d92794d00422bd0b8/vsco5e602b5d3bf87.jpg')
-									.setTimestamp();
-									message.channel.send(msgEmbed);
-								}
-							});
-							
-						});	
-					}else{
-						console.log(currentTime + "no new games found.");
-						//client.channels.cache.find(x => x.name === 'test').send("No new games yet.");
-					}
-				});
-			});	
-		},60000);	
+		},10000);	
 	}
 	
+	// tell the bot tos top looking for new matches
+	if (command === 'stop'){
+		clearInterval(interval);
+		message.channel.send("`" + client.user.username + " stopped looking for new matches.`");
+	}
 	
 	
 	// 0 - lobby
 	// 1 - myStats
 	// 2 - teamStats
 	// 3 - proStats
-	if (message.content === '!recent')
+	if (command === 'recent')
 	{
-		let matchid = getMatchId("her0#11341","battle");
+		let matchid;
+		if (args[1] == null){
+			matchid = getMatchId("her0#11341","battle", 0);
+			message.channel.send("`Analyzing itachi's most recent match...`");
+			
+			matchid.then(function (result) {
+				let gameStats = getMatchStatsById(result, "battle");
+				gameStats.then(function(allStats){
+					let mode = "";
+					let lobbyStats = allStats[0];
+					let myStats = allStats[1];
+					let teamStats = allStats[2];
+					let proStats = allStats[3];
+
 		
-						matchid.then(function (result) {
-							let gameStats = inspectForEvents(result, "battle");
-							gameStats.then(function(allStats){
+					if (teamStats.length == 0){
+						mode = "Solos";
+					} else if (teamStats.length == 1){
+						mode = "Duos";
+					} else if (teamStats.length == 2){
+						mode = "Trios";
+					} else {
+						mode = "Quads";
+					}
 				
-								let mode = "";
-								let lobbyStats = allStats[0];
-								let myStats = allStats[1];
-								let teamStats = allStats[2];
-								let proStats = allStats[3];
-								let mostKills = findMax(lobbyStats['total_kills_team']);
-								let mostDmg = findMax(lobbyStats['total_dmg_team']);
+					// var discordColor = "```diff\n" + comparedKills + "\n```";
+		
+					// this is the message being sent to discord
+					const embed = makeEmbed(myStats,lobbyStats,teamStats);
+					embed.setTitle(myStats['username'] + '\'s Recent ' + mode + ' Match: ' + result)
+
+					message.channel.send(embed);
+		
 					
-								if (teamStats.length == 0){
-									mode = "Solos";
-								} else if (teamStats.length == 1){
-									mode = "Duos";
-								} else if (teamStats.length == 2){
-									mode = "Trios";
-								} else {
-									mode = "Quads";
-								}
+					// if pro player is found in the lobby, send it to discord
+					if (proStats.length != 0)
+					{
+						const proEmbed = makeEmbedPro(proStats);
+						message.channel.send(proEmbed);
+					}
+				});
+			});	
+		} else if (isNaN(args[1])){
+			message.channel.send("`Argument given must be a number.`");
+		} else if (args[1] == 0) {
+			message.channel.send("`Argument given must be greater than 1.`");
+		} else {
+			let suffix = '';
+			if (args[1] == 1)
+			{
+				suffix = "st";
+			} else if (args[1] == 2) {
+				suffix = "nd";
+			} else if (args[1] == 3) {
+				suffix = "rd";
+			} else {
+				suffix = "th";
+			}
+			
+			
+			matchid = getMatchId("her0#11341","battle", args[1] - 1);
+			message.channel.send("`" + `Analyzing itachi's ${args[1]}${suffix} recent match...` + "`");
+
+			matchid.then(function (result) {
+				let gameStats = getMatchStatsById(result, "battle");
+				gameStats.then(function(allStats){
+					let mode = "";
+					let lobbyStats = allStats[0];
+					let myStats = allStats[1];
+					let teamStats = allStats[2];
+					let proStats = allStats[3];
+
+					if (teamStats.length == 0){
+						mode = "Solos";
+					} else if (teamStats.length == 1){
+						mode = "Duos";
+					} else if (teamStats.length == 2){
+						mode = "Trios";
+					} else {
+						mode = "Quads";
+					}
 					
-						
-								const embed = new Discord.MessageEmbed()
-									.setTitle(myStats['username'] + '\'s Recent ' + mode + ' Match: ' + result)
-									.setDescription("--------------------------------------------")
-									.addField("🏆 Your team placed " + myStats['team_placement'] + " out of " + lobbyStats['totalTeams'] + " 🏆","--------------------------------------------",false)
-									.addField(myStats['username'] + '\'s stats:','🔪 Kills: ' + "`" + myStats['kills'] + "`" + 
-																				 ' | ☠️ Deaths: ' + "`" + myStats['deaths'] + "`" +
-																				 ' | 📊 KDR: ' + "`" + myStats['kdr'].toFixed(2) + "`" + 
-																				 ' | 🔥 Damage: ' + "`" + myStats['damage_done'] + "`",false);
-									
-									for (x = 0; x < teamStats.length; x++)
-									{
-										embed.addField(teamStats[x].username + "'s stats", '🔪 Kills: ' + "`" + teamStats[x]['kills'] + "`" + 
-																				 ' | ☠️ Deaths: ' + "`" + teamStats[x]['deaths'] + "`" +
-																				 ' | 📊 KDR: ' + "`" + teamStats[x]['kdr'].toFixed(2) + "`" + 
-																				 ' | 🔥 Damage: ' + "`" + teamStats[x]['damage_done'] + "`",false);
-									}
-																				 
-									embed.addField("Decimator" , "- The lobby's __kill leader(s)__: " + "**" + lobbyStats['kill_leader'] + "**" + " with " + "**" + lobbyStats['kill_leader_kills'] + "**" + " kills.")
-									.addField("The Feared" , "- " + "**" + lobbyStats['damage_leader'] + "**" + " dealt the __most damage__ with " + "**" + lobbyStats['damage_leader_dmg'] + "**" + " damage done.")
-									.addField("Us vs. Them","- Your team __clapped__ a total of " + "**" + lobbyStats['total_kills_team'][myStats['team_placement'] - 1] + "**" + " cheeks -- " + 
-																"the lobby average for team kills is  " + "**" + lobbyStats['avg_kills_team'] + "**"  + "." + 
-																					"\n- Your team __dealt__ a total of " + "**" + lobbyStats['total_dmg_team'][myStats['team_placement']-1] + "**" + " damage -- " + 
-																"the lobby average for team damage dealt is " + "**" + lobbyStats['avg_dmg_team'] + "**" + "." + 
-																					"\n- The __most total kills__ by a team in the lobby is " + "**" + mostKills + "**" + "." +
-																					"\n- The __most total damage done__ by a team in the lobby is " + "**" + mostDmg + "**" + "."
-																					,false)
-									
-									.setColor('#00bfff')
-									.setFooter('Bot by kristiantud using call-of-duty-api','https://image-aws-us-west-2.vsco.co/db219f/140039794/5e602b5d92794d00422bd0b8/vsco5e602b5d3bf87.jpg')
-									.setTimestamp();
-									message.channel.send(embed);
+
 					
-								
-								if (proStats.length != 0)
-								{
-									const msgEmbed = new Discord.MessageEmbed()
-											.setTitle("Twitch streamer(s) in lobby");
-									for (x = 0; x < proStats.length; x++) 
-									{
-										msgEmbed.addField(proStats[x].username + "'s stats", '🔪 Kills: ' + "`" + proStats[x]['kills'] + "`" + 
-																				 ' | ☠️ Deaths: ' + "`" + proStats[x]['deaths'] + "`" +
-																				 ' | 📊 KDR: ' + "`" + proStats[x]['kdr'].toFixed(2) + "`" + 
-																				 ' | 🔥 Damage: ' + "`" + proStats[x]['damage_done'] + 
-																				 ' | 🏆 Placement: ' + "`" + proStats[x]['team_placement'],false);
-									}
-									msgEmbed.setColor('#00bfff')
-									.setFooter('Bot by kristiantud using call-of-duty-api','https://image-aws-us-west-2.vsco.co/db219f/140039794/5e602b5d92794d00422bd0b8/vsco5e602b5d3bf87.jpg')
-									.setTimestamp();
-									message.channel.send(msgEmbed);
-								}
-							});
-						});	
+					// var discordColor = "```diff\n" + comparedKills + "\n```";
+		
+					// this is the message being sent to discord
+					const embed = makeEmbed(myStats,lobbyStats,teamStats);
+					embed.setTitle(myStats['username'] + `\'s ${args[1]}${suffix} Recent ` + mode + ' Match: ' + result)
+
+					message.channel.send(embed);
+		
+					
+					// if pro player is found in the lobby, send it to discord
+					if (proStats.length != 0)
+					{
+						const proEmbed = makeEmbedPro(proStats);
+						message.channel.send(proEmbed);
+					}
+				});
+			});				
+		}
+		
+		
+
 	}
 	
-	// disconnect the bot completely
-	if (message.content === '!stop'){
-		clearInterval(interval);
-		message.channel.send(client.user.username + " stopped looking for new matches.");
+	
+	/*
+	if (command === 'findpros')
+	{
+		if (args[1] === 'help'){
+			var proList = "Nickmercs, SypherPk, Trash_Fue,\nDoozy, K3, Vikkstar123,\ntimthetatman, cloakzy, Daequan,\nHusKerrs, Symfuhny, AydaN";
+			message.channel.send("`This command will look for pros/streamers from itachi's last 50 games.`\n**Looking for:**\n" + proList);
+		} 
+		
+		//else {
+		//	message.channel.send("`Analyzing data from 50 games. This might take a minute...`");
+		//	let matchIds = getIds(50);
+		//	matchIds.then(function(results){
+		//		// send this array of ids to an analayzer
+		//		findPros(results, "battle");
+		//	});
+		//}
+		
+		
+		var score = getPlayerScore("4058925799952643972", "uno");
+		
+		score.then(function(res){
+			console.log("itachi's score: " + res);
+		});
+		
+		
+
+		
 	}
+	*/
+	
+
 	
 	
 });
