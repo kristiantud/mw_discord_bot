@@ -27,106 +27,6 @@ async function getMatchId(gamertag, platform,gameNumber) {
   return summary[gameNumber].matchId;
 }
 
-// use this function to get stats on player, calculate their estimated skill
-async function getPlayerScore(gamertag, unoId){
-    const login = await API.login(username, pswrd).catch((err) => console.log(err));
-    const summary = await API.MWBattleData(gamertag, unoId).catch((err) => console.log(err));
-	
-	var userScore = 0;
-	
-	var userStats = {
-			'kills' : 0,
-			'kills_per_game' : 0,
-			'kdr' : 0,
-			'games_played' : 0,
-			'wins' : 0,
-			'score_per_minute' : 0
-	};
-
-
-	userStats['kills'] = summary.br.kills;
-	userStats['kills_per_game'] = summary.br.kills / summary.br.gamesPlayed;
-	userStats['kdr'] = summary.br.kdRatio;
-	userStats['games_played'] = summary.br.gamesPlayed;
-	userStats['wins'] = summary.br.wins;
-	userStats['score_per_minute'] = summary.br.scorePerMinute;
-	
-	// calculate the total score
-	
-	// for kills
-	if (userStats['kills'] < 1000)
-	{
-		userScore = userScore + 0.25;
-	} else if (userStats['kills'] > 1000 && userStats['kills'] < 2500) {
-		userScore = userScore + 0.50;
-	} else if (userStats['kills'] > 2500 && userStats['kills'] < 4500) { 
-		userScore = userScore + 0.75;
-	} else if (userStats['kills'] > 4500) {
-		userScore = userScore + 1.00;
-	}
-	
-	
-	// for kills per game
-	if (userStats['kills_per_game'] <= 1) {
-		userScore = userScore + 0.25;
-	} else if (userStats['kills_per_game'] > 1 && userStats['kills_per_game'] <= 3) {
-		userScore = userScore + 0.50;
-	} else if (userStats['kills_per_game'] > 3 && userStats['kills_per_game'] <= 5) { 
-		userScore = userScore + 0.75;
-	} else if (userStats['kills_per_game'] > 5) {
-		userScore = userScore + 1.00;
-	}
-	
-	userScore = userScore / 2;
-	
-	// for kdr 
-	if (userStats['kdr'] <= 1.00) {
-		userScore = userScore + 0.25;
-	} else if (userStats['kdr'] > 1.00 && userStats['kdr'] <= 1.50) {
-		userScore = userScore + 0.50;
-	} else if (userStats['kdr'] > 1.50 && userStats['kdr'] <= 2.00) { 
-		userScore = userScore + 0.75;
-	} else if (userStats['kdr'] > 2.00) {
-		userScore = userScore + 1.00;
-	}
-	
-	// for gamesplayed 
-	if (userStats['games_played'] <= 200) {
-		userScore = userScore + 0.25;
-	} else if (userStats['games_played'] > 200 && userStats['games_played'] <= 500) {
-		userScore = userScore + 0.50;
-	} else if (userStats['games_played'] > 500 && userStats['games_played'] <= 750) { 
-		userScore = userScore + 0.75;
-	} else if (userStats['games_played'] > 750) {
-		userScore = userScore + 1.00;
-	}
-	
-	// for wins 
-	if (userStats['wins'] <= 10 ) {
-		userScore = userScore + 0.25;
-	} else if (userStats['wins'] > 10 && userStats['wins'] <= 25) {
-		userScore = userScore + 0.50;
-	} else if (userStats['wins'] > 25 && userStats['wins'] <= 45) { 
-		userScore = userScore + 0.75;
-	} else if (userStats['wins'] > 45) {
-		userScore = userScore + 1.00;
-	}
-	
-	// for scorePerMinute
-	if (userStats['score_per_minute'] <= 100) {
-		userScore = userScore + 0.25;
-	} else if (userStats['score_per_minute'] > 100 && userStats['score_per_minute'] <= 250) {
-		userScore = userScore + 0.25;
-	} else if (userStats['score_per_minute'] > 250 && userStats['score_per_minute'] <= 350) { 
-		userScore = userScore + 0.75;
-	} else if (userStats['score_per_minute'] > 350) {
-		userScore = userScore + 1.00;
-	}
-	
-	
-	return userScore;
-
-}
 
 // finds stats on multiple entities
 // only takes the latest match
@@ -225,16 +125,6 @@ async function getMatchStatsById(matchId, platform){
 	// looks at every player in a match
 	for (x = 0 ; x < allPlayers.length; x++)
 	{
-		
-		/*
-		// get the username and unoId
-		var gamertag = allPlayers[x].player.username;
-		var unoId = allPlayers[x].player.uno;
-		
-		var playerScore = getPlayerScore(gamertag, uno);
-		lobbyScore = lobbyScore + playerScore;
-		*/
-		
 		if (allPlayers[x].playerStats.teamPlacement == 1)
 		{	
 			var temp = {};	 
@@ -244,10 +134,9 @@ async function getMatchStatsById(matchId, platform){
 			lobbyStats['lobby_winners'].push(temp);
 			temp = {};
 		}
+	
 				
 		
-		
-
 		// current player becomes kill leader if they meet the criteria
 		if (allPlayers[x].playerStats.kills > killLeaderKills)
 		{
@@ -324,7 +213,8 @@ async function getMatchStatsById(matchId, platform){
 		  allPlayers[x].player.username === "HusKerrs" || 
 		  allPlayers[x].player.username === "Symfuhny" || 
 		  allPlayers[x].player.username === "AydaN" ||
-		  allPlayers[x].player.username === "shroud" )
+		  allPlayers[x].player.username === "shroud" ||
+		  allPlayers[x].player.username === "jackfragss")
 		{
 			otherPlayers['username'] = allPlayers[x].player.username;
 			otherPlayers['clantag'] = allPlayers[x].player.clantag;
@@ -406,6 +296,7 @@ async function getMatchStatsById(matchId, platform){
 	lobbyStats['last_10_team_avg_deaths'] = lastTenDeaths / 10;
 	lobbyStats['last_10_team_avg_kdr'] = lastTenKdr / 10;
 	lobbyStats['last_10_team_avg_damage'] = lastTenDamage / 10;
+	
 	
 	
 	// put all data of match into allStats 
@@ -560,62 +451,6 @@ async function getIds(n){
 	return nMatchIds;
 }
 
-async function findPros(matchIds, platform)
-{
-	var proPlayersFound = [];
-	var proPlayersStats = 
-						{
-							'match_id' : 0,
-							'username' : '',
-							'clantag' : '',
-							'kills' : 0, 
-							'deaths' : 0,
-							'kdr' : 0,
-							'damage_done' : 0
-						};
-	for (matchId in matchIds)
-	{
-		console.log("checking game: " + matchId);
-		const login = await API.login(username, pswrd).catch((err) => console.log(err));
-		const summary = await API.MWFullMatchInfowz(matchId, platform).catch((err) => console.log(err));
-		
-		// look for pros and add it onto an array
-		for (x = 0; x < summary.allPlayers.length; x++)
-		{
-			if (summary.allPlayers[x].player.username === "Nickmercs" || 
-				summary.allPlayers[x].player.username === "SypherPk" ||
-				summary.allPlayers[x].player.username === "Trash_Fue" ||
-				summary.allPlayers[x].player.username === "Doozy" ||
-				summary.allPlayers[x].player.username === "K3" ||
-				summary.allPlayers[x].player.username === "Vikkstar123" || 
-				summary.allPlayers[x].player.username === "timthetatman" ||
-				summary.allPlayers[x].player.username === "cloakzy" || 
-				summary.allPlayers[x].player.username === "Daequan" || 
-				summary.allPlayers[x].player.username === "HusKerrs" || 
-				summary.allPlayers[x].player.username === "Symfuhny" || 
-				summary.allPlayers[x].player.username === "AydaN" ||
-				summary.allPlayers[x].player.username === "shroud" ||
-				summary.allPlayers[x].player.username === "JumpyLion" ||
-				summary.allPlayers[x].player.username === "itachi")
-			{
-				proPlayersStats['match_id'] = matchId;
-				proPlayersStats['username'] = summary.allPlayers[x].player.username;
-				proPlayersStats['clantag'] = summary.allPlayers[x].player.clantag;
-				proPlayersStats['kills'] = summary.allPlayers[x].playerStats.kills;
-				proPlayersStats['deaths'] = summary.allPlayers[x].playerStats.deaths;
-				proPlayersStats['kdr'] = summary.allPlayers[x].playerStats.kdRatio;
-				proPlayersStats['damage_done'] = summary.allPlayers[x].playerStats.damageDone;
-				proPlayersFound.push(proPlayersStats);
-				console.log("current player: " + proPlayersStats);
-				proPlayersStats = {};
-			}
-		}
-	}
-	
-	console.log(proPlayersFound);
-	return proPlayersFound;
-	
-}
 
 async function getWarzoneStats(gamertag, platform){
 	const login = await API.login(username, pswrd).catch((err) => console.log(err));
@@ -695,6 +530,7 @@ client.on('message',function(message){
 					let myStats = allStats[1];
 					let teamStats = allStats[2];
 					let proStats = allStats[3];
+					//console.log("lobby score: " + lobbyStats.lobbyScore);
 
 		
 					if (teamStats.length == 0){
@@ -763,9 +599,7 @@ client.on('message',function(message){
 					} else {
 						mode = "Quads";
 					}
-					
-
-					
+				
 					// var discordColor = "```diff\n" + comparedKills + "\n```";
 		
 					// this is the message being sent to discord
@@ -784,45 +618,7 @@ client.on('message',function(message){
 				});
 			});				
 		}
-		
-		
-
 	}
-	
-	
-	/*
-	if (command === 'findpros')
-	{
-		if (args[1] === 'help'){
-			var proList = "Nickmercs, SypherPk, Trash_Fue,\nDoozy, K3, Vikkstar123,\ntimthetatman, cloakzy, Daequan,\nHusKerrs, Symfuhny, AydaN";
-			message.channel.send("`This command will look for pros/streamers from itachi's last 50 games.`\n**Looking for:**\n" + proList);
-		} 
-		
-		//else {
-		//	message.channel.send("`Analyzing data from 50 games. This might take a minute...`");
-		//	let matchIds = getIds(50);
-		//	matchIds.then(function(results){
-		//		// send this array of ids to an analayzer
-		//		findPros(results, "battle");
-		//	});
-		//}
-		
-		
-		var score = getPlayerScore("4058925799952643972", "uno");
-		
-		score.then(function(res){
-			console.log("itachi's score: " + res);
-		});
-		
-		
-
-		
-	}
-	*/
-	
-
-	
-	
 });
 
 
