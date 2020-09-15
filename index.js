@@ -1,15 +1,13 @@
 // more docs: https://www.npmjs.com/package/call-of-duty-api
 // psn, steam, xbl, battle, uno
 
+require('dotenv').config();
+
 
 // discord init
 const Discord = require("discord.js");
 const client = new Discord.Client();
 
-// the bot token
-const token = ""; 
-const username = "";
-const pswrd = "";
 
 // init cod-api module
 const API = require('call-of-duty-api')();
@@ -19,13 +17,14 @@ const API = require('call-of-duty-api')();
 // use this function to get the match id 
 // returns the match id 
 async function getMatchId(gamertag, platform,gameNumber) {
-  const login = await API.login(username, pswrd ).catch((err) => console.log(err));
+  const login = await API.login(process.env.USER, process.env.PASS ).catch((err) => console.log(err));
   const summary = await API.MWfullcombatwz(gamertag, platform).catch((err) => console.log(err));
   //console.log(summary.weekly.mode.br_brquads);
 
   // console.log(summary[0].matchId);
   return summary[gameNumber].matchId;
 }
+
 
 
 // finds stats on multiple entities
@@ -36,7 +35,7 @@ async function getMatchId(gamertag, platform,gameNumber) {
 // 2 - teamStats
 // 3 - proStats
 async function getMatchStatsById(matchId, platform){
-	const login = await API.login(username, pswrd).catch((err) => console.log(err));
+	const login = await API.login(process.env.USER, process.env.PASS).catch((err) => console.log(err));
     const summary = await API.MWFullMatchInfowz(matchId, platform).catch((err) => console.log(err));
 	
 	let teamCount = summary.allPlayers[0].teamCount; // total teams
@@ -214,8 +213,10 @@ async function getMatchStatsById(matchId, platform){
 		  allPlayers[x].player.username === "Symfuhny" || 
 		  allPlayers[x].player.username === "AydaN" ||
 		  allPlayers[x].player.username === "shroud" ||
-		  allPlayers[x].player.username === "jackfragss")
+		  allPlayers[x].player.username === "jackfragss" || 
+		  allPlayers[x].player.username === "Metaphor")
 		{
+			console.log(allPlayers[x].player.clantag + allPlayers[x].player.username);
 			otherPlayers['username'] = allPlayers[x].player.username;
 			otherPlayers['clantag'] = allPlayers[x].player.clantag;
 			otherPlayers['acti'] = allPlayers[x].player.uno;
@@ -453,7 +454,7 @@ async function getIds(n){
 
 
 async function getWarzoneStats(gamertag, platform){
-	const login = await API.login(username, pswrd).catch((err) => console.log(err));
+	const login = await API.login(process.env.USER, process.env.PASS).catch((err) => console.log(err));
     const summary = await API.MWBattleData(gamertag, platform).catch((err) => console.log(err));
 	
 	console.log(summary);
@@ -466,7 +467,7 @@ var interval;
 const prefix = "!";
 
 // discord bot goes online
-client.login(token);
+client.login(process.env.TOKEN);
 
 
 // tell the console that the bot is working

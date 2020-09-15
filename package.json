@@ -19,6 +19,7 @@
   "homepage": "https://github.com/kristiantud/mw_discord_bot#readme",
   "dependencies": {
     "call-of-duty-api": "^1.2.15",
-    "discord.js": "^12.3.1"
+    "discord.js": "^12.3.1",
+    "dotenv": "^8.2.0"
   }
 }
